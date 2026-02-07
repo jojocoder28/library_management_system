@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { Book, User, ClipboardList, CheckCircle, XCircle, Plus } from 'lucide-react';
+import { Book, User, ClipboardList, CheckCircle, XCircle, Plus, Search } from 'lucide-react';
 
 const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('requests');
     const [requests, setRequests] = useState([]);
     const [issues, setIssues] = useState([]);
-    const [books, setBooks] = useState([]); // For managing inventory
+    const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Form State for New Book
-    const [newBook, setNewBook] = useState({ title: '', isbn: '', publisher_id: 1, publication_year: 2023, author_ids: [] });
 
     const fetchData = async () => {
         setLoading(true);
@@ -38,20 +35,7 @@ const AdminDashboard = () => {
 
     const handleApprove = async (request) => {
         try {
-            // Need to find a copy. In a real app, we might select a specific copy.
-            // For now, let's assume we pick the first available copy of this book.
-            // But the backend requires copy_id. 
-            // We first need to check availability.
-
-            // Simplified Logic: 
-            // 1. Get copies of the book.
-            // 2. Pick first available.
-            // 3. Issue it.
-
-            const copiesRes = await api.get('/copies/'); // This endpoint returns ALL copies. Might be inefficient.
-            // Ideally we need /books/{id}/copies.
-            // Based on my backend implementation, /copies/ returns all.
-
+            const copiesRes = await api.get('/copies/');
             const availableCopy = copiesRes.data.find(c => c.book_id === request.book_id && c.status === 'available');
 
             if (!availableCopy) {
@@ -62,15 +46,14 @@ const AdminDashboard = () => {
             const issueData = {
                 copy_id: availableCopy.id,
                 user_id: request.user_id,
-                return_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days later
+                return_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
             };
 
             await api.post('/issues/', issueData);
-            // Also update request status to approved
             await api.put(`/requests/${request.id}`, { status: 'approved' });
 
             toast.success("Request approved and book issued");
-            fetchData(); // Refresh
+            fetchData();
         } catch (error) {
             toast.error("Failed to approve request: " + (error.response?.data?.detail || error.message));
         }
@@ -88,85 +71,165 @@ const AdminDashboard = () => {
 
     return (
         <div className="space-y-6">
-            <div className="sm:flex sm:items-center">
-                <div className="sm:flex-auto">
-                    <h1 className="text-xl font-semibold text-gray-900">Admin Dashboard</h1>
-                    <p className="mt-2 text-sm text-gray-700">Manage library operations.</p>
+            <div className="sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                    <p className="mt-1 text-sm text-gray-500">Overview of library operations and management.</p>
+                </div>
+                <div className="mt-4 sm:mt-0">
+                    <button
+                        onClick={fetchData}
+                        className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    >
+                        Refresh Data
+                    </button>
                 </div>
             </div>
 
             {/* Tabs */}
             <div className="border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8">
-                    {['requests', 'issues', 'books'].map((tab) => (
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    {[
+                        { id: 'requests', name: 'Requests', icon: ClipboardList },
+                        { id: 'issues', name: 'Active Issues', icon: User },
+                        { id: 'books', name: 'Inventory', icon: Book },
+                    ].map((tab) => (
                         <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`${activeTab === tab ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm capitalize`}
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`${activeTab === tab.id
+                                    ? 'border-indigo-500 text-indigo-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } group inline-flex items-center border-b-2 py-4 px-1 text-sm font-medium`}
                         >
-                            {tab}
+                            <tab.icon className={`${activeTab === tab.id ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} -ml-0.5 mr-2 h-5 w-5`} aria-hidden="true" />
+                            {tab.name}
                         </button>
                     ))}
                 </nav>
             </div>
 
-            {loading ? <div>Loading...</div> : (
+            {loading ? (
+                <div className="flex justify-center p-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                </div>
+            ) : (
                 <div className="mt-4">
+                    {/* REQUESTS TABLE */}
                     {activeTab === 'requests' && (
-                        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                            <ul className="divide-y divide-gray-200">
-                                {requests.filter(r => r.status === 'pending').length === 0 && <li className="p-4 text-gray-500">No pending requests.</li>}
-                                {requests.filter(r => r.status === 'pending').map((req) => (
-                                    <li key={req.id} className="p-4 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-indigo-600">Request #{req.id}</p>
-                                            <p className="text-sm text-gray-500">User ID: {req.user_id} | Book ID: {req.book_id}</p>
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            <button onClick={() => handleApprove(req)} className="p-2 bg-green-100 text-green-800 rounded-full hover:bg-green-200">
-                                                <CheckCircle className="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {activeTab === 'issues' && (
-                        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                            <ul className="divide-y divide-gray-200">
-                                {issues.filter(i => i.status === 'issued').length === 0 && <li className="p-4 text-gray-500">No active issues.</li>}
-                                {issues.filter(i => i.status === 'issued').map((issue) => (
-                                    <li key={issue.id} className="p-4 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-indigo-600">Issue #{issue.id}</p>
-                                            <p className="text-sm text-gray-500">Copy ID: {issue.copy_id} | User ID: {issue.user_id}</p>
-                                            <p className="text-xs text-gray-400">Due: {new Date(issue.return_date).toLocaleDateString()}</p>
-                                        </div>
-                                        <button onClick={() => handleReturn(issue.id)} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-200">
-                                            Return Book
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {activeTab === 'books' && (
-                        <div>
-                            <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Inventory</h3>
-                            {/* Placeholder for Add Book Form - kept simple for now */}
-                            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                                <ul className="divide-y divide-gray-200">
-                                    {books.map((book) => (
-                                        <li key={book.id} className="p-4">
-                                            <p className="text-sm font-medium text-gray-900">{book.title}</p>
-                                            <p className="text-sm text-gray-500">ISBN: {book.isbn}</p>
-                                        </li>
+                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                            <table className="min-w-full divide-y divide-gray-300">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Request ID</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">User ID</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Book ID</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                                            <span className="sr-only">Actions</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                    {requests.filter(r => r.status === 'pending').length === 0 && (
+                                        <tr><td colSpan="5" className="p-8 text-center text-gray-500">No pending requests found.</td></tr>
+                                    )}
+                                    {requests.filter(r => r.status === 'pending').map((req) => (
+                                        <tr key={req.id}>
+                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{req.id}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{req.user_id}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{req.book_id}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                                <span className="inline-flex rounded-full bg-yellow-100 px-2 text-xs font-semibold leading-5 text-yellow-800">
+                                                    Pending
+                                                </span>
+                                            </td>
+                                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                                <button
+                                                    onClick={() => handleApprove(req)}
+                                                    className="text-green-600 hover:text-green-900 flex items-center justify-end w-full"
+                                                >
+                                                    Approve <CheckCircle className="ml-1 h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
                                     ))}
-                                </ul>
-                            </div>
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* ISSUES TABLE */}
+                    {activeTab === 'issues' && (
+                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                            <table className="min-w-full divide-y divide-gray-300">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Issue ID</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Copy ID</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">User ID</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Due Date</th>
+                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                                            <span className="sr-only">Actions</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                    {issues.filter(i => i.status === 'issued').length === 0 && (
+                                        <tr><td colSpan="5" className="p-8 text-center text-gray-500">No active issues found.</td></tr>
+                                    )}
+                                    {issues.filter(i => i.status === 'issued').map((issue) => (
+                                        <tr key={issue.id}>
+                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{issue.id}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{issue.copy_id}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{issue.user_id}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                                {new Date(issue.return_date).toLocaleDateString()}
+                                            </td>
+                                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                                <button
+                                                    onClick={() => handleReturn(issue.id)}
+                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                >
+                                                    Return
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* BOOKS TABLE */}
+                    {activeTab === 'books' && (
+                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                            <table className="min-w-full divide-y divide-gray-300">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Book Title</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ISBN</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Year</th>
+                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                                            <span className="sr-only">Edit</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                    {books.map((book) => (
+                                        <tr key={book.id}>
+                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                                {book.title}
+                                            </td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{book.isbn}</td>
+                                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{book.publication_year}</td>
+                                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                                <a href="#" className="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
