@@ -28,7 +28,7 @@ class Issue(Base):
     fine_amount = Column(Float, default=0.0)
 
     user = relationship("app.models.user.User", back_populates="issues")
-    copy = relationship("app.models.book.BookCopy", back_populates="issues")
+    book_copy = relationship("app.models.book.BookCopy", back_populates="issues")
 
 class IssueRequest(Base):
     __tablename__ = "issue_requests"

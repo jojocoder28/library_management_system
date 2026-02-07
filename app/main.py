@@ -38,7 +38,7 @@ async def log_requests(request: Request, call_next):
 # CORS Middleware
 origins = [
     "http://localhost",
-    "http://localhost:3000", # Common frontend port
+    "http://localhost:5173", # Common frontend port
     "http://localhost:8080",
 ]
 
@@ -51,7 +51,7 @@ app.add_middleware(
 )
 
 # Include Routers
-app.include_router(auth.router)
+app.include_router(auth.router, prefix="/auth")
 app.include_router(users.router)
 app.include_router(books.router)
 app.include_router(transactions.router)

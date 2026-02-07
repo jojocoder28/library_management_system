@@ -58,4 +58,4 @@ class BookCopy(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     book = relationship("Book", back_populates="copies")
-    issues = relationship("app.models.transaction.Issue", back_populates="copy")
+    issues = relationship("app.models.transaction.Issue", back_populates="book_copy")

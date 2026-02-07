@@ -46,7 +46,7 @@ class IssueRead(IssueBase):
     actual_return_date: Optional[datetime] = None
     status: IssueStatus
     fine_amount: float
-    copy: BookCopyRead
+    book_copy: BookCopyRead
     user: UserRead
 
     class Config:
