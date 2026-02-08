@@ -35,11 +35,17 @@ async def log_requests(request: Request, call_next):
         logger.critical(f"Unhandled Exception: {str(e)}", exc_info=True)
         raise e
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # CORS Middleware
 origins = [
     "http://localhost",
     "http://localhost:5173", # Common frontend port
     "http://localhost:8080",
+    os.getenv("FRONTEND_URL", "http://localhost:5173"),
 ]
 
 app.add_middleware(

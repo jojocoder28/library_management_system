@@ -30,7 +30,17 @@ A full-stack Library Management System built with **FastAPI** (Backend) and **Re
 - Python 3.8+ installed.
 - Node.js & npm installed.
 
-### 1. Backend Setup
+### 1. Environment Setup
+Create a `.env` file in the root directory (`D:\Temp Work\LMS\.env`) with the following content:
+```env
+DATABASE_URL=sqlite:///./library.db
+SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+FRONTEND_URL=http://localhost:5173
+```
+
+### 2. Backend Setup
 1. Navigate to the root directory:
    ```bash
    cd "D:\Temp Work\LMS"
